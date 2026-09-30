@@ -1,0 +1,11 @@
+# Secrets — never commit these
+.env
+
+# Files the bot creates while running (students, cache, sent log)
+data/
+
+# Python junk
+__pycache__/
+*.pyc
+.venv/
+venv/

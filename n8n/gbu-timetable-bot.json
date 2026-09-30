@@ -1,0 +1,1084 @@
+{
+  "name": "GBU Timetable Bot 🎓",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# 🎓 GBU Timetable Bot\nA Telegram bot that sends students their **class timetable** and **reminds them before every class**.\nNeeds a recent n8n with **Data tables** (n8n 2.x).\n\n## ▶️ Get it running\n1. On Telegram, open **@BotFather** → send `/newbot` → copy the **token**.\n2. Open **💬 Student sends a message** → Credential → *Create new* → paste the token.\n3. Open **⚙️ Settings** → paste the same token into `botToken`.\n4. Open **🗄️ Create students table** → click **Execute step** (creates the `gbu_students` data table).\n5. **Publish** the workflow (top right).\n6. Send `/start` to your bot on Telegram 🎉\n\n## 🧭 How to read this canvas\nFollow the arrows, left → right:\n\n**①** something wakes the bot up\n**②** settings, then: a student or the clock?\n**③** reply to a student  *or*  **④** send reminders\n**⑤** send it to Telegram\n\n## ⚠️ Good to know\n- Telegram must be able to reach your n8n over HTTPS: use **n8n Cloud**, a server, or a tunnel (cloudflared / ngrok + `WEBHOOK_URL`).\n- A bot can deliver to only **one** place. Testing the Telegram trigger in the editor takes the bot away from the published workflow, so publish again afterwards. The Python version needs its **own bot**.\n- All times are **Indian time** (⚙️ Settings → `timezone`), whatever timezone your n8n server uses.\n- Every student message downloads the timetable (~3 MB). Fine for a workshop; the Python version shows how to cache it.",
+        "height": 1640,
+        "width": 640,
+        "color": 6
+      },
+      "id": "b98217b5-6af9-5493-837d-8e7b763c5b74",
+      "name": "Note: start here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ⓪ One-time setup\nOpen **🗄️ Create students table** → **Execute step**, once. It creates the **gbu_students** data table where we remember each student's class (see *Overview → Data tables*).",
+        "height": 380,
+        "width": 560,
+        "color": 4
+      },
+      "id": "e85f7fc1-0520-5681-847f-4b145bbc65b2",
+      "name": "Note: setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ① What wakes the bot up?\n💬 a student writes or taps a button\n\n⏰ the clock, every 5 minutes",
+        "height": 700,
+        "width": 280,
+        "color": 7
+      },
+      "id": "b64ff389-d63d-5761-8b37-0bd5a653161b",
+      "name": "Note: triggers",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ② Settings, then: who is it?\n**⚙️ Settings** is the only node you edit: bot token, period timings, morning time, reminder minutes.\n\n**🔀** Then we split: a **student** wrote (*true*) → ③, or it's the **clock** (*false*) → ④.",
+        "height": 460,
+        "width": 460,
+        "color": 5
+      },
+      "id": "84743778-f62d-5045-b476-8ab409362b1c",
+      "name": "Note: settings",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        260,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ③ A student wrote → work out what they want → reply\n**📥 Fetch** downloads `mygbu.in/schd/api.php`, the *same* API the mygbu.in website uses. We found it in the browser's **Network tab** (the HAR file). It lists every class slot in the university as JSON.\n**🧠 Understand** turns the Telegram update into an *action*: `/today`, `/next`, or a button tap like `s:SOICT` / `c:1299`.\n**👤 Find student** looks up their saved class in the **gbu_students** data table.\n**🔀 What do they want?** picks a path. Each path builds a reply and hands it to **📤 Send**.\n\nClass picker: **School → Program → Class → (lab batch)**, or just type `BCS-I-A`.",
+        "height": 1020,
+        "width": 1640,
+        "color": 7
+      },
+      "id": "95bbdfd2-c37e-5f95-86d3-26e7b29bca73",
+      "name": "Note: chat",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        780,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ④ The clock: summaries & reminders\n**🕐** Every 5 minutes: is it **7:30** (day summary) or does a class start in **10 min** (reminder)? If not, the run stops here and nothing is downloaded.\nOtherwise: **📥** timetable → **👥** every student → **✉️** one message each. The 2nd hour of a 2-hour lab isn't a new class, so there are no double reminders.",
+        "height": 400,
+        "width": 880,
+        "color": 4
+      },
+      "id": "ed1af4a2-a528-54e7-819b-2a9eb8421629",
+      "name": "Note: clock",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        780,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ⑤ Talk to Telegram\nEvery message goes out through this one node:\n`POST api.telegram.org/bot<token>/<method>`\n\nMethods used: `sendMessage`, `editMessageText`, `answerCallbackQuery`.\n\nThat's all a Telegram bot really is: **HTTP requests**.",
+        "height": 520,
+        "width": 340,
+        "color": 3
+      },
+      "id": "9203cd17-b808-5f03-bb7d-e5b24467dc2e",
+      "name": "Note: send",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        140
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "6060eb3d-de83-5dd4-b6bf-c485a2e194ef",
+      "name": "▶️ Run once: setup",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        40,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "gbu_students",
+        "columns": {
+          "column": [
+            {
+              "name": "chat_id",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "section_id",
+              "type": "string"
+            },
+            {
+              "name": "section",
+              "type": "string"
+            },
+            {
+              "name": "program",
+              "type": "string"
+            },
+            {
+              "name": "school",
+              "type": "string"
+            },
+            {
+              "name": "batch",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "id": "bc1a652c-238f-5a00-9db3-183ce61ff04e",
+      "name": "🗄️ Create students table",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "e7f98ec5-a2b5-54c1-a475-7493dccd2a4c",
+      "name": "💬 Student sends a message",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        40,
+        280
+      ],
+      "webhookId": "1fadb31f-2c29-51fc-af60-2b83ffa45be4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "fda22fe1-e6e3-5e08-aea4-5aac0affcae8",
+      "name": "⏰ Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        40,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "109221e7-90c2-5741-adf4-c68f70871e82",
+              "name": "botToken",
+              "type": "string",
+              "value": "PASTE-YOUR-BOT-TOKEN-HERE"
+            },
+            {
+              "id": "f4328aa8-c3ce-570c-b587-38e0fe360fd7",
+              "name": "timetableUrl",
+              "type": "string",
+              "value": "https://mygbu.in/schd/api.php"
+            },
+            {
+              "id": "0d1abc78-ab57-5aa8-888f-e93fb6ca96a8",
+              "name": "periods",
+              "type": "array",
+              "value": "[\"08:30-09:30\", \"09:30-10:30\", \"10:30-11:30\", \"11:30-12:30\", \"12:30-13:30\", \"13:30-14:30\", \"14:30-15:30\", \"15:30-16:30\", \"16:30-17:30\", \"17:30-18:30\", \"18:30-19:30\"]"
+            },
+            {
+              "id": "da21701b-0851-52bc-8a67-dcf6e8e1f7a1",
+              "name": "morningAt",
+              "type": "string",
+              "value": "07:30"
+            },
+            {
+              "id": "81b541c1-351e-5b1f-bbd8-196cf8996d28",
+              "name": "remindMinutesBefore",
+              "type": "number",
+              "value": 10
+            },
+            {
+              "id": "37ebeef8-0c89-5713-9bf2-bfe08eaec871",
+              "name": "timezone",
+              "type": "string",
+              "value": "Asia/Kolkata"
+            },
+            {
+              "id": "05407660-2b5e-5170-9a2e-bf52ad687657",
+              "name": "telegramApi",
+              "type": "string",
+              "value": "https://api.telegram.org"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3d681db8-5dbe-5dc0-b193-cbbc9ab48ff8",
+      "name": "⚙️ Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e9ffbdb6-0599-525c-816b-afd5290829fb",
+              "leftValue": "={{ $('💬 Student sends a message').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4b3aa2df-be06-5ca8-befb-392779e69d35",
+      "name": "🔀 Did a student write?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('⚙️ Settings').first().json.timetableUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "48e15ca9-6a04-59b4-a5cf-085bb5f6925e",
+      "name": "📥 Fetch GBU timetable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        160
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🧠 What did the student send? A typed message, or a tap on one of our buttons?\n// Output: { chatId, name, action, value, callbackId, messageId }\nconst update = $('💬 Student sends a message').first().json;\n\n// Typed commands → action\nconst COMMANDS = { '/start': 'start', '/class': 'start', '/today': 'today', '/tomorrow': 'tomorrow',\n                   '/next': 'next', '/week': 'week', '/stop': 'stop', '/help': 'help' };\n// The big menu buttons simply send their label as a message\nconst MENU_BUTTONS = { '📅 Today': 'today', '➡️ Tomorrow': 'tomorrow', '⏭ Next class': 'next',\n                       '🗓 Week': 'week', '🔁 Change class': 'start' };\n// Buttons under a message send short \"callback data\", e.g. \"s:SOICT\" or \"c:1299\"\nconst CALLBACKS = { home: 'start', s: 'school', p: 'program', c: 'section', b: 'batch', d: 'day' };\n\nif (update.callback_query) {                        // 👆 a button was tapped\n  const tap = update.callback_query;\n  if (!tap.message) return [];\n  const [kind, ...rest] = (tap.data || '').split(':');\n  return [{ json: {\n    chatId: tap.message.chat.id,\n    name: tap.from.first_name || '',\n    action: CALLBACKS[kind] || 'help',\n    value: rest.join(':'),\n    callbackId: tap.id,\n    messageId: tap.message.message_id,             // so we can edit that message\n  } }];\n}\n\nconst message = update.message || {};              // ⌨️ a typed message\nif (!message.chat) return [];\nconst text = (message.text || '').trim();\nconst firstWord = text.split(/\\s+/)[0].split('@')[0].toLowerCase();   // \"/today@MyBot\" → \"/today\"\n\nlet action = 'help';\nif (MENU_BUTTONS[text]) action = MENU_BUTTONS[text];\nelse if (COMMANDS[firstWord]) action = COMMANDS[firstWord];\nelse if (text && !text.startsWith('/')) action = 'search';            // maybe they typed \"BCS-I-A\"\n\nreturn [{ json: {\n  chatId: message.chat.id,\n  name: (message.from || {}).first_name || '',\n  action,\n  value: text,\n  callbackId: null,\n  messageId: null,\n} }];\n"
+      },
+      "id": "020902ef-3a97-5532-b1fa-bb381b516068",
+      "name": "🧠 Understand message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "gbu_students"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ String($json.chatId) }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "ab2271d3-4fd2-5e9c-b97e-74d788c34dec",
+      "name": "👤 Find student",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        160
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a2f10b1a-bef7-5e10-ae66-8722c4a9684d",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "1e56b0a3-3f2d-5c3a-9789-1df6e236c72e",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "school",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "19d6af5b-f30c-5fd7-9afb-0bbe6321156e",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "program",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "6c8d458b-8b13-5fda-83af-2f4ae14a35fe",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "search",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "pick a class"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9a724ef9-828e-5153-ae7f-2ad2fb101998",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "section",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "47e827a8-21ed-55e0-9a0f-992e4912230d",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "batch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "save class"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6c89f47e-dd3f-5ca8-8ef8-8e38f48810a0",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "today",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "1645ce7b-6255-558d-8af0-5dc97c7742f3",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "tomorrow",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "e53fa511-da91-590d-b9fe-9eb5b37d9c88",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "next",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "16f4b933-adfd-59d5-937a-baa852c9afd8",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "week",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "0a0c4e25-2497-5814-88f8-75c8086a7acc",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "day",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "timetable"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "78664c37-15f1-53d9-93b8-ed4b3fcbdd36",
+                    "leftValue": "={{ $('🧠 Understand message').first().json.action }}",
+                    "rightValue": "stop",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "stop"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "anything else"
+        }
+      },
+      "id": "ee8273d0-8bbd-57ea-9800-6f578976a64d",
+      "name": "🔀 What do they want?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1480,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🏫 The class picker: School → Program → Class.\n// Also handles typed class names like \"bcs-i-a\".\nconst who = $('🧠 Understand message').first().json;\nconst student = $('👤 Find student').first().json;          // {} if no class picked yet\n\n// Every class slot in the timetable — we only need \"which class belongs where\" here\nconst rows = JSON.parse($('📥 Fetch GBU timetable').first().json.data).map(r => ({\n  school: String(r.school ?? '').trim(),\n  programId: String(r.program_id ?? '').trim(),\n  program: String(r.program_name ?? '').trim(),\n  sectionId: String(r.Section_Id ?? '').trim(),\n  section: String(r.SectionName ?? '').trim(),\n}));\n\n// Little helpers\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);\nconst uniqueBy = (list, key) => [...new Map(list.map(x => [key(x), x])).values()];\nconst rowsOf = (buttons, perRow) => {\n  const out = [];\n  for (let i = 0; i < buttons.length; i += perRow) out.push(buttons.slice(i, i + perRow));\n  return out;\n};\nconst button = (text, data) => ({ text, callback_data: data });\nconst simplify = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');\n\nlet text, buttons;\n\nif (who.action === 'school') {            // Step 2: programs in the chosen school\n  const programs = uniqueBy(rows.filter(r => r.school === who.value), r => r.programId)\n    .sort((a, b) => byText(a.program, b.program));\n  text = `<b>Step 2 of 3</b> · Your program in <b>${esc(who.value)}</b>?`;\n  buttons = [...programs.map(p => [button(p.program, `p:${p.programId}`)]), [button('⬅️ Back', 'home')]];\n}\n\nif (who.action === 'program') {           // Step 3: classes (sections) in the chosen program\n  const sections = uniqueBy(rows.filter(r => r.programId === who.value), r => r.sectionId)\n    .sort((a, b) => byText(a.section, b.section));\n  if (sections.length) {\n    text = `<b>Step 3 of 3</b> · Your class in <b>${esc(sections[0].program)}</b>?`;\n    buttons = [...rowsOf(sections.map(s => button(s.section, `c:${s.sectionId}`)), 3),\n               [button('⬅️ Back', `s:${sections[0].school}`)]];\n  }\n}\n\nif (who.action === 'search') {            // They typed something, e.g. \"bcs-i-a\"\n  const wanted = simplify(who.value);\n  const matches = wanted.length < 2 ? [] :\n    uniqueBy(rows.filter(r => simplify(r.section).includes(wanted)), r => r.sectionId)\n      .sort((a, b) => (simplify(a.section) !== wanted) - (simplify(b.section) !== wanted) || byText(a.section, b.section))\n      .slice(0, 12);\n  if (matches.length) {\n    text = `🔎 Classes matching “${esc(who.value)}” — tap yours:`;\n    buttons = rowsOf(matches.map(s => button(s.section, `c:${s.sectionId}`)), 3);\n  } else {\n    text = `🤔 I couldn't find a class called “${esc(who.value)}”.\\n\\n` +\n           `Tap /start to pick it from a list, or /help to see what I can do.`;\n  }\n}\n\nif (!text) {                              // Step 1 (/start): the list of schools\n  const schools = [...new Set(rows.map(r => r.school).filter(Boolean))].sort(byText);\n  text = `👋 Hi${who.name ? ' ' + esc(who.name) : ''}! I'm the <b>GBU Timetable Bot</b>.\\n` +\n         `I'll send you your timetable every morning and remind you before every class.\\n\\n` +\n         (student.section ? `You're currently in <b>${esc(student.section)}</b>. Pick again to change it.\\n\\n` : '') +\n         `<b>Step 1 of 3</b> · Which school are you in?`;\n  buttons = rowsOf(schools.map(s => button(s, `s:${s}`)), 3);\n}\n\n// Reply. If they tapped a button we update that same message, otherwise we send a new one.\nconst body = { chat_id: who.chatId, text, parse_mode: 'HTML' };\nif (buttons) body.reply_markup = { inline_keyboard: buttons };\nif (!who.callbackId) return [{ json: { method: 'sendMessage', body } }];\nreturn [\n  { json: { method: 'answerCallbackQuery', body: { callback_query_id: who.callbackId } } },\n  { json: { method: 'editMessageText', body: { ...body, message_id: who.messageId } } },\n];\n"
+      },
+      "id": "33f40f65-6a52-537e-ab14-0168ebb2991b",
+      "name": "🏫 Show class picker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 📝 Build the row we save in the \"gbu_students\" data table.\n// The field names must match the table's column names exactly.\nconst who = $('🧠 Understand message').first().json;\nconst student = $('👤 Find student').first().json;          // {} if no class picked yet\n\nif (who.action === 'batch') {             // they tapped \"Batch 1 / Batch 2 / Not sure\"\n  if (!student.section_id) return [];     // no class saved yet → nothing to update\n  return [{ json: {\n    chat_id: String(who.chatId),\n    name: student.name || who.name,\n    section_id: student.section_id,\n    section: student.section,\n    program: student.program,\n    school: student.school,\n    batch: Number(who.value) || 0,\n  } }];\n}\n\n// they tapped a class → look it up in the timetable\nconst row = JSON.parse($('📥 Fetch GBU timetable').first().json.data)\n  .find(r => String(r.Section_Id ?? '').trim() === who.value);\nif (!row) return [];                      // that class isn't in the timetable anymore\n\nreturn [{ json: {\n  chat_id: String(who.chatId),\n  name: who.name,\n  section_id: String(row.Section_Id).trim(),\n  section: String(row.SectionName).trim(),\n  program: String(row.program_name).trim(),\n  school: String(row.school).trim(),\n  batch: 0,                               // 0 = \"show every batch\" until they choose one\n} }];\n"
+      },
+      "id": "9c613877-ad0e-56da-988a-f7493176199e",
+      "name": "📝 Prepare student row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "gbu_students"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.chat_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "0ecb8f7f-587d-54e7-bf6a-7be98ba36197",
+      "name": "💾 Save student",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ Tell the student what we saved. If their labs are split into batches, ask which one.\nconst S = $('⚙️ Settings').first().json;\nconst who = $('🧠 Understand message').first().json;\nconst saved = $('📝 Prepare student row').first().json;\n\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst button = (text, data) => ({ text, callback_data: data });\n\n// Which lab batches exist for this class? e.g. [1, 2]  (empty = labs aren't split)\nconst batches = [...new Set(\n  JSON.parse($('📥 Fetch GBU timetable').first().json.data)\n    .filter(r => String(r.Section_Id ?? '').trim() === saved.section_id)\n    .map(r => Number(r.Batch_Id || 0))\n    .filter(b => b > 0)\n)].sort((a, b) => a - b);\n\nconst label = esc(saved.section) + (saved.batch ? ` · Batch ${saved.batch}` : '');\nconst edit = (text, buttons) => ({ json: { method: 'editMessageText', body: {\n  chat_id: who.chatId, message_id: who.messageId, text, parse_mode: 'HTML',\n  ...(buttons ? { reply_markup: { inline_keyboard: buttons } } : {}),\n} } });\n\nconst out = [{ json: { method: 'answerCallbackQuery', body: { callback_query_id: who.callbackId } } }];\n\nif (who.action === 'section' && batches.length) {\n  out.push(edit(\n    `✅ <b>${esc(saved.section)}</b> saved!\\n\\nLabs in your class are split into batches.\\n<b>Which batch are you in?</b>`,\n    [batches.map(b => button(`Batch ${b}`, `b:${b}`)), [button('🤷 Not sure — show all', 'b:0')]],\n  ));\n} else {\n  out.push(edit(`✅ Class chosen: <b>${label}</b>`));\n  out.push({ json: { method: 'sendMessage', body: {\n    chat_id: who.chatId,\n    parse_mode: 'HTML',\n    text: `🎉 <b>All set!</b> You're in <b>${label}</b>\\n<i>${esc(saved.program)} · ${esc(saved.school)}</i>\\n\\n` +\n          `I'll message you:\\n☀️ every morning at ${S.morningAt.replace(/^0/, '')} with the day's classes\\n` +\n          `🔔 ${S.remindMinutesBefore} minutes before each class\\n\\n` +\n          `Use the buttons below anytime 👇`,\n    // A menu that replaces the phone keyboard. Tapping a button sends its text.\n    reply_markup: {\n      keyboard: [[{ text: '📅 Today' }, { text: '➡️ Tomorrow' }],\n                 [{ text: '⏭ Next class' }, { text: '🗓 Week' }],\n                 [{ text: '🔁 Change class' }]],\n      resize_keyboard: true,\n      is_persistent: true,\n    },\n  } } });\n}\nreturn out;\n"
+      },
+      "id": "6096e7f1-cb4f-56f9-b8bb-aaf143f63d12",
+      "name": "✅ Confirm choice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Timetable helpers (same logic as timetable.py in the Python repo) ──────────\nconst S = $('⚙️ Settings').first().json;\nconst DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\n\n// One tidy object per class slot. TT_Day: 1 = Monday … 7 = Sunday. Batch_Id 0 = whole class.\nconst rows = JSON.parse($('📥 Fetch GBU timetable').first().json.data).map(r => ({\n  sectionId: String(r.Section_Id ?? '').trim(),\n  day: Number(r.TT_Day),\n  period: Number(r.TT_Period),\n  batch: Number(r.Batch_Id || 0),\n  type: String(r.ActivityTag ?? '').trim() || 'Class',\n  code: String(r.Subject_Code ?? '').trim(),\n  subject: String(r.subject_name ?? '').trim() || String(r.Subject_Code ?? '').trim() || 'Class',\n  teacher: String(r.TeacherName ?? '').trim(),\n  room: String(r.RoomName ?? '').trim(),\n}));\n\n// Period 2 → [\"09:30\", \"10:30\"], using the table in ⚙️ Settings\nfunction periodTimes(p) {\n  const fromSettings = (S.periods || [])[p - 1];\n  if (fromSettings) return fromSettings.split('-').map(t => t.trim());\n  const start = 8 * 60 + 30 + (p - 1) * 60;           // not in the table: website's rule\n  const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;\n  return [hhmm(start), hhmm(start + 60)];\n}\n\n// All classes of one section on one day. Back-to-back periods of the same class\n// (like a 2-hour lab) are joined into one. batch 0 = show every lab batch.\nfunction classesOn(sectionId, day, batch) {\n  const list = rows\n    .filter(r => r.sectionId === String(sectionId) && r.day === day && (!batch || r.batch === 0 || r.batch === batch))\n    .sort((a, b) => a.period - b.period || a.batch - b.batch || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));\n  const classes = [];\n  const seen = new Set();\n  for (const r of list) {\n    const what = [r.code, r.subject, r.type, r.teacher, r.room, r.batch].join('|');\n    if (seen.has(`${what}@${r.period}`)) continue;      // the API sometimes repeats a row\n    seen.add(`${what}@${r.period}`);\n    const previous = classes.find(c => c.what === what && c.lastPeriod === r.period - 1);\n    if (previous) {\n      previous.lastPeriod = r.period;\n      previous.end = periodTimes(r.period)[1];\n    } else {\n      const [start, end] = periodTimes(r.period);\n      classes.push({ ...r, what, firstPeriod: r.period, lastPeriod: r.period, start, end });\n    }\n  }\n  return classes.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.batch - b.batch));\n}\n\n// \"09:30\" on the same date as `date` (a Luxon DateTime)\nconst at = (date, hhmm) => date.set({ hour: Number(hhmm.slice(0, 2)), minute: Number(hhmm.slice(3, 5)), second: 0, millisecond: 0 });\n\n// ── Message helpers (same as messages.py) ──────────────────────────────────────\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst ICONS = { Lecture: '📘', Lab: '🧪', Tutorial: '✏️' };\nconst whoLabel = st => esc(st.section) + (Number(st.batch) ? ` · Batch ${st.batch}` : '');\n\nfunction card(c, showBatch) {\n  const details = [];\n  if (c.code) details.push(`<code>${esc(c.code)}</code>`);\n  if (c.teacher) details.push(`👤 ${esc(c.teacher)}`);\n  if (c.room) details.push(`📍 ${esc(c.room)}`);\n  return [\n    `⏰ <b>${c.start}–${c.end}</b> · ${esc(c.type)}` + (showBatch && c.batch ? ` · Batch ${c.batch}` : ''),\n    `${ICONS[c.type] || '📘'} ${esc(c.subject)}`,\n    details.join(' · '),\n  ].filter(Boolean).join('\\n');\n}\n\nfunction dayTimetable(st, day, classes, when) {\n  const title = `📅 <b>${DAY_NAMES[day]}</b>${when ? ` (${when})` : ''} — ${whoLabel(st)}`;\n  if (!classes.length) return `${title}\\n\\n🎉 No classes!`;\n  const parts = [title];\n  let busyUntil = null;\n  for (const c of classes) {\n    if (busyUntil && c.start > busyUntil) parts.push(`☕ <i>Free ${busyUntil}–${c.start}</i>`);\n    parts.push(card(c, !Number(st.batch)));\n    if (!busyUntil || c.end > busyUntil) busyUntil = c.end;\n  }\n  return parts.join('\\n\\n');\n}\n// ────────────────────────────────────────────────────────────────────────────────\n\n// ── The reply ───────────────────────────────────────────────────────────────────\nconst who = $('🧠 Understand message').first().json;\nconst student = $('👤 Find student').first().json;          // {} if no class picked yet\n\nconst out = [];\nconst telegram = (method, body) => out.push({ json: { method, body: { chat_id: who.chatId, parse_mode: 'HTML', ...body } } });\nif (who.callbackId) out.push({ json: { method: 'answerCallbackQuery', body: { callback_query_id: who.callbackId } } });\n\nif (!student.section_id) {\n  telegram('sendMessage', { text: \"You haven't picked your class yet 🙂\\nTap /start to choose it.\" });\n  return out;\n}\n\nconst now = DateTime.now().setZone(S.timezone);\nconst batch = Number(student.batch) || 0;\nconst dayButtons = [[1, 2, 3, 4], [5, 6, 7]]\n  .map(line => line.map(d => ({ text: DAY_NAMES[d].slice(0, 3), callback_data: `d:${d}` })));\n\nif (who.action === 'week') {                             // 🗓 show day buttons\n  telegram('sendMessage', { text: '🗓 Which day do you want to see?', reply_markup: { inline_keyboard: dayButtons } });\n\n} else if (who.action === 'next') {                      // ⏭ what's on now + the next class\n  let running = [], nextDate = null, upcoming = [];\n  for (let d = 0; d < 8 && !nextDate; d++) {\n    const date = now.plus({ days: d });\n    let classes = classesOn(student.section_id, date.weekday, batch);\n    if (d === 0) {\n      running = classes.filter(c => at(date, c.start) <= now && now < at(date, c.end));\n      classes = classes.filter(c => at(date, c.start) > now);\n    }\n    if (classes.length) {\n      nextDate = date;\n      upcoming = classes.filter(c => c.start === classes[0].start);\n    }\n  }\n  const parts = [];\n  if (running.length) parts.push(`🟢 <b>Right now</b>\\n${running.map(c => card(c, !batch)).join('\\n\\n')}`);\n  if (upcoming.length) {\n    const start = at(nextDate, upcoming[0].start);\n    const minutes = Math.floor(start.diff(now, 'minutes').minutes);\n    const days = Math.round(start.startOf('day').diff(now.startOf('day'), 'days').days);\n    const when = days === 0 ? (minutes < 60 ? `in ${Math.max(minutes, 1)} min (${start.toFormat('HH:mm')})` : `today at ${start.toFormat('HH:mm')}`)\n               : days === 1 ? `tomorrow at ${start.toFormat('HH:mm')}`\n               : `on ${DAY_NAMES[start.weekday]} at ${start.toFormat('HH:mm')}`;\n    parts.push(`⏭ <b>Next class</b> — ${when}\\n${upcoming.map(c => card(c, !batch)).join('\\n\\n')}`);\n  }\n  telegram('sendMessage', { text: parts.join('\\n\\n') || `🎉 No classes in the next 7 days for ${whoLabel(student)}.` });\n\n} else {                                                 // 📅 today / tomorrow / a day button\n  let day = Number(who.value), when = '';\n  if (who.action === 'today') { day = now.weekday; when = 'today'; }\n  if (who.action === 'tomorrow') { day = now.plus({ days: 1 }).weekday; when = 'tomorrow'; }\n  if (!(day >= 1 && day <= 7)) day = now.weekday;\n  const text = dayTimetable(student, day, classesOn(student.section_id, day, batch), when);\n  if (who.action === 'day') telegram('editMessageText', { message_id: who.messageId, text, reply_markup: { inline_keyboard: dayButtons } });\n  else telegram('sendMessage', { text });\n}\nreturn out;\n"
+      },
+      "id": "4aa12d86-acd1-5d1b-b58a-ee36e38f5621",
+      "name": "📅 Build timetable reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "gbu_students"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "condition": "eq",
+              "keyValue": "={{ String($('🧠 Understand message').first().json.chatId) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3c7faa23-28ff-5209-a9fb-c1052b360442",
+      "name": "🗑️ Forget student",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 👋 The student sent /stop. Their row is already deleted — say bye and hide the menu.\nconst who = $('🧠 Understand message').first().json;\nreturn [{ json: { method: 'sendMessage', body: {\n  chat_id: who.chatId,\n  parse_mode: 'HTML',\n  text: \"👋 Done — I've forgotten your class and won't message you.\\nTap /start anytime to come back.\",\n  reply_markup: { remove_keyboard: true },\n} } }];\n"
+      },
+      "id": "5e2cfe27-fcc5-5fda-b96a-3a07b2f1d462",
+      "name": "👋 Say goodbye",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ❓ Anything we don't understand gets the help text.\nconst who = $('🧠 Understand message').first().json;\nconst out = [];\nif (who.callbackId) out.push({ json: { method: 'answerCallbackQuery', body: { callback_query_id: who.callbackId } } });\nout.push({ json: { method: 'sendMessage', body: {\n  chat_id: who.chatId,\n  parse_mode: 'HTML',\n  text: '🤖 <b>GBU Timetable Bot</b>\\n' +\n        'I send your class timetable and remind you before every class.\\n\\n' +\n        '/start — choose your class\\n' +\n        '/today — today\\'s classes\\n' +\n        '/tomorrow — tomorrow\\'s classes\\n' +\n        '/next — your next class\\n' +\n        '/week — pick any day\\n' +\n        '/stop — stop all messages\\n\\n' +\n        '💡 You can also just type your class name, like <code>BCS-I-A</code>.',\n} } });\nreturn out;\n"
+      },
+      "id": "726925d3-2a20-5a71-a1df-9f84475086ee",
+      "name": "❓ Show help",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 🕐 The clock ticks every 5 minutes. Is it time to send something?\n// If not, we stop right here — nothing gets downloaded. Uses Indian time, whatever n8n's own timezone is.\nconst S = $('⚙️ Settings').first().json;\nconst now = DateTime.now().setZone(S.timezone);\nconst minutesNow = now.hour * 60 + now.minute;\nconst toMinutes = hhmm => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));\n\n// ☀️ Morning summary: the tick at 7:30 (the window is 5 minutes wide, so it happens once a day)\nconst morning = toMinutes(S.morningAt);\nif (minutesNow >= morning && minutesNow < morning + 5) {\n  return [{ json: { job: 'morning summary', time: now.toFormat('HH:mm') } }];\n}\n\n// 🔔 Reminder: does a period start in about `remindMinutesBefore` minutes?\nconst startingSoon = (S.periods || [])\n  .map((times, i) => ({ period: i + 1, start: times.split('-')[0].trim() }))\n  .filter(p => {\n    const minutesUntil = toMinutes(p.start) - minutesNow;\n    return minutesUntil > S.remindMinutesBefore - 5 && minutesUntil <= S.remindMinutesBefore;\n  });\nif (startingSoon.length) {\n  return [{ json: { job: 'class reminder', time: now.toFormat('HH:mm'), periods: startingSoon.map(p => p.period) } }];\n}\n\nreturn [];   // nothing due → the workflow stops here\n"
+      },
+      "id": "66d621ed-67d4-59c0-9388-7508da41fda4",
+      "name": "🕐 Anything due now?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('⚙️ Settings').first().json.timetableUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "da63e82b-f915-57f4-8720-cd9e96cc9253",
+      "name": "📥 Fetch timetable (for reminders)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        900
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "gbu_students"
+        },
+        "returnAll": true
+      },
+      "id": "a7bc88f8-a92c-57ce-856d-5ce67d0a9b0e",
+      "name": "👥 Get all students",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Timetable helpers (same logic as timetable.py in the Python repo) ──────────\nconst S = $('⚙️ Settings').first().json;\nconst DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\n\n// One tidy object per class slot. TT_Day: 1 = Monday … 7 = Sunday. Batch_Id 0 = whole class.\nconst rows = JSON.parse($('📥 Fetch timetable (for reminders)').first().json.data).map(r => ({\n  sectionId: String(r.Section_Id ?? '').trim(),\n  day: Number(r.TT_Day),\n  period: Number(r.TT_Period),\n  batch: Number(r.Batch_Id || 0),\n  type: String(r.ActivityTag ?? '').trim() || 'Class',\n  code: String(r.Subject_Code ?? '').trim(),\n  subject: String(r.subject_name ?? '').trim() || String(r.Subject_Code ?? '').trim() || 'Class',\n  teacher: String(r.TeacherName ?? '').trim(),\n  room: String(r.RoomName ?? '').trim(),\n}));\n\n// Period 2 → [\"09:30\", \"10:30\"], using the table in ⚙️ Settings\nfunction periodTimes(p) {\n  const fromSettings = (S.periods || [])[p - 1];\n  if (fromSettings) return fromSettings.split('-').map(t => t.trim());\n  const start = 8 * 60 + 30 + (p - 1) * 60;           // not in the table: website's rule\n  const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;\n  return [hhmm(start), hhmm(start + 60)];\n}\n\n// All classes of one section on one day. Back-to-back periods of the same class\n// (like a 2-hour lab) are joined into one. batch 0 = show every lab batch.\nfunction classesOn(sectionId, day, batch) {\n  const list = rows\n    .filter(r => r.sectionId === String(sectionId) && r.day === day && (!batch || r.batch === 0 || r.batch === batch))\n    .sort((a, b) => a.period - b.period || a.batch - b.batch || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));\n  const classes = [];\n  const seen = new Set();\n  for (const r of list) {\n    const what = [r.code, r.subject, r.type, r.teacher, r.room, r.batch].join('|');\n    if (seen.has(`${what}@${r.period}`)) continue;      // the API sometimes repeats a row\n    seen.add(`${what}@${r.period}`);\n    const previous = classes.find(c => c.what === what && c.lastPeriod === r.period - 1);\n    if (previous) {\n      previous.lastPeriod = r.period;\n      previous.end = periodTimes(r.period)[1];\n    } else {\n      const [start, end] = periodTimes(r.period);\n      classes.push({ ...r, what, firstPeriod: r.period, lastPeriod: r.period, start, end });\n    }\n  }\n  return classes.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.batch - b.batch));\n}\n\n// \"09:30\" on the same date as `date` (a Luxon DateTime)\nconst at = (date, hhmm) => date.set({ hour: Number(hhmm.slice(0, 2)), minute: Number(hhmm.slice(3, 5)), second: 0, millisecond: 0 });\n\n// ── Message helpers (same as messages.py) ──────────────────────────────────────\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst ICONS = { Lecture: '📘', Lab: '🧪', Tutorial: '✏️' };\nconst whoLabel = st => esc(st.section) + (Number(st.batch) ? ` · Batch ${st.batch}` : '');\n\nfunction card(c, showBatch) {\n  const details = [];\n  if (c.code) details.push(`<code>${esc(c.code)}</code>`);\n  if (c.teacher) details.push(`👤 ${esc(c.teacher)}`);\n  if (c.room) details.push(`📍 ${esc(c.room)}`);\n  return [\n    `⏰ <b>${c.start}–${c.end}</b> · ${esc(c.type)}` + (showBatch && c.batch ? ` · Batch ${c.batch}` : ''),\n    `${ICONS[c.type] || '📘'} ${esc(c.subject)}`,\n    details.join(' · '),\n  ].filter(Boolean).join('\\n');\n}\n\nfunction dayTimetable(st, day, classes, when) {\n  const title = `📅 <b>${DAY_NAMES[day]}</b>${when ? ` (${when})` : ''} — ${whoLabel(st)}`;\n  if (!classes.length) return `${title}\\n\\n🎉 No classes!`;\n  const parts = [title];\n  let busyUntil = null;\n  for (const c of classes) {\n    if (busyUntil && c.start > busyUntil) parts.push(`☕ <i>Free ${busyUntil}–${c.start}</i>`);\n    parts.push(card(c, !Number(st.batch)));\n    if (!busyUntil || c.end > busyUntil) busyUntil = c.end;\n  }\n  return parts.join('\\n\\n');\n}\n// ────────────────────────────────────────────────────────────────────────────────\n\n// ── Who gets what ───────────────────────────────────────────────────────────────\nconst due = $('🕐 Anything due now?').first().json;   // { job, periods }\nconst now = DateTime.now().setZone(S.timezone);\nconst today = now.weekday;\n\nconst out = [];\nconst seen = new Set();                                  // never message the same chat twice\nfor (const { json: student } of $input.all()) {\n  if (!student.section_id || seen.has(student.chat_id)) continue;\n  seen.add(student.chat_id);\n  const batch = Number(student.batch) || 0;\n  const classes = classesOn(student.section_id, today, batch);\n  let text = null;\n\n  if (due.job === 'morning summary') {\n    if (classes.length) {                                // no classes today → don't disturb them\n      text = `☀️ <b>Good morning, ${esc(student.name || 'there')}!</b> Here's your day:\\n\\n` +\n             dayTimetable(student, today, classes);\n    }\n  } else {\n    // Only classes that START in these periods (the 2nd hour of a lab is not a new class)\n    const soon = classes.filter(c => due.periods.includes(c.firstPeriod));\n    if (soon.length) {\n      const minutes = Math.ceil(at(now, soon[0].start).diff(now, 'minutes').minutes);\n      text = (minutes > 1 ? `🔔 <b>Class in ${minutes} minutes!</b>` : '🔔 <b>Class starting now!</b>') +\n             '\\n\\n' + soon.map(c => card(c, !batch)).join('\\n\\n');\n    }\n  }\n\n  if (text) out.push({ json: { method: 'sendMessage', body: { chat_id: student.chat_id, text, parse_mode: 'HTML' } } });\n}\nreturn out;\n"
+      },
+      "id": "d15356cb-68ec-5607-be49-d60d97261ae0",
+      "name": "✉️ Build summary / reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('⚙️ Settings').first().json.telegramApi }}/bot{{ $('⚙️ Settings').first().json.botToken }}/{{ $json.method }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 20,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "474d5a1f-249e-5b05-851d-44cc03363d3a",
+      "name": "📤 Send to Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        420
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "▶️ Run once: setup": {
+      "main": [
+        [
+          {
+            "node": "🗄️ Create students table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Student sends a message": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏰ Every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Settings": {
+      "main": [
+        [
+          {
+            "node": "🔀 Did a student write?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Did a student write?": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch GBU timetable",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🕐 Anything due now?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Fetch GBU timetable": {
+      "main": [
+        [
+          {
+            "node": "🧠 Understand message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Understand message": {
+      "main": [
+        [
+          {
+            "node": "👤 Find student",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👤 Find student": {
+      "main": [
+        [
+          {
+            "node": "🔀 What do they want?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 What do they want?": {
+      "main": [
+        [
+          {
+            "node": "🏫 Show class picker",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Prepare student row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📅 Build timetable reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🗑️ Forget student",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❓ Show help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Prepare student row": {
+      "main": [
+        [
+          {
+            "node": "💾 Save student",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Save student": {
+      "main": [
+        [
+          {
+            "node": "✅ Confirm choice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Forget student": {
+      "main": [
+        [
+          {
+            "node": "👋 Say goodbye",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏫 Show class picker": {
+      "main": [
+        [
+          {
+            "node": "📤 Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Confirm choice": {
+      "main": [
+        [
+          {
+            "node": "📤 Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📅 Build timetable reply": {
+      "main": [
+        [
+          {
+            "node": "📤 Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👋 Say goodbye": {
+      "main": [
+        [
+          {
+            "node": "📤 Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❓ Show help": {
+      "main": [
+        [
+          {
+            "node": "📤 Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🕐 Anything due now?": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch timetable (for reminders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Fetch timetable (for reminders)": {
+      "main": [
+        [
+          {
+            "node": "👥 Get all students",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👥 Get all students": {
+      "main": [
+        [
+          {
+            "node": "✉️ Build summary / reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✉️ Build summary / reminders": {
+      "main": [
+        [
+          {
+            "node": "📤 Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": []
+}
