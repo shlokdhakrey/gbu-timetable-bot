@@ -1,6 +1,6 @@
 """
-📡  TALKING TO TELEGRAM
-=======================
+TALKING TO TELEGRAM
+===================
 A Telegram bot is just a program that sends HTTP requests to
 
     https://api.telegram.org/bot<YOUR_TOKEN>/<methodName>
@@ -11,7 +11,7 @@ That's all this file does. The methods we use:
     editMessageText      change a message we already sent
     answerCallbackQuery  tell Telegram we handled a button tap
 
-In the n8n workflow, 💬 Telegram Trigger and 📤 Send to Telegram do this job.
+In the n8n workflow, the Telegram trigger and "Send to Telegram" do this job.
 All methods: https://core.telegram.org/bots/api
 """
 
@@ -46,7 +46,7 @@ def call(method, **params):
 def inline_buttons(rows):
     """
     Buttons attached to a message. We write them as simple lists:
-        [[("Batch 1", "b:1"), ("Batch 2", "b:2")], [("⬅️ Back", "home")]]
+        [[("Batch 1", "b:1"), ("Batch 2", "b:2")], [("Back", "home")]]
     The second value (callback data) is what the bot receives when a button is tapped.
     """
     return {"inline_keyboard": [[{"text": label, "callback_data": data} for label, data in row]

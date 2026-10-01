@@ -1,7 +1,7 @@
 """
-🧪  TRY IT WITHOUT TELEGRAM
-===========================
-See the timetable logic working right in your terminal — no bot token needed.
+TRY IT WITHOUT TELEGRAM
+=======================
+See the timetable logic working right in your terminal - no bot token needed.
 
     python try_it.py                      asks you a few questions
     python try_it.py BCS-I-A              today's classes for BCS-I-A
@@ -58,13 +58,13 @@ def main():
         return
     section_id, section = matches[0]
     info = tt.section_info(section_id)
-    print(f"\n✅ {section} — {info['program']} ({info['school']})")
+    print(f"\n{section} - {info['program']} ({info['school']})")
 
     batches = tt.batches(section_id)
     if len(args) > 2:
         batch = int(args[2])
     elif batches and not args:
-        batch = int(ask(f"Lab batches {batches} — which one? (Enter = all)", "0"))
+        batch = int(ask(f"Lab batches {batches} - which one? (Enter = all)", "0"))
     else:
         batch = 0
 
@@ -73,7 +73,7 @@ def main():
     elif args:
         day_word = "today"
     else:
-        day_word = ask("Day? (today/tomorrow/mon…sun)", "today")
+        day_word = ask("Day? (today/tomorrow/mon...sun)", "today")
     now = datetime.now(config.IST)
     day, when = parse_day(day_word, now)
 

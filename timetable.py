@@ -1,10 +1,10 @@
 """
-📥  THE TIMETABLE
-=================
+THE TIMETABLE
+=============
 Downloads the timetable from mygbu.in and answers questions like
 "which classes does BCS-I-A have on Tuesday?"
 
-In the n8n workflow this is the  📥 Fetch GBU timetable  node, plus the
+In the n8n workflow this is the "Fetch GBU timetable" node, plus the
 helper functions at the top of the Code nodes.
 
 What one row from the API looks like (trimmed):
@@ -102,18 +102,18 @@ class Timetable:
                 self.rows = rows
                 self._save_cache(raw)
                 self.next_refresh = time.time() + config.TIMETABLE_REFRESH_MINUTES * 60
-                print(f"📥 Timetable loaded from {source}: {len(rows)} class slots")
+                print(f"Timetable loaded from {source}: {len(rows)} class slots")
                 return True
             except Exception as error:   # network down, site changed, bad JSON...
-                print(f"⚠️  Could not load timetable from {source}: {error}")
+                print(f"Could not load timetable from {source}: {error}")
 
-        if not self.rows:                 # nothing in memory either → try the disk copy
+        if not self.rows:                 # nothing in memory either -> try the disk copy
             try:
                 with open(CACHE_FILE, encoding="utf-8") as f:
                     self.rows = self._clean_all(json.load(f))
-                print(f"📦 Using saved copy of the timetable ({len(self.rows)} class slots)")
+                print(f"Using saved copy of the timetable ({len(self.rows)} class slots)")
             except (OSError, ValueError):
-                print("❌ No timetable available yet.")
+                print("No timetable available yet.")
         self.next_refresh = time.time() + 5 * 60   # try again in 5 minutes
         return False
 
@@ -141,7 +141,7 @@ class Timetable:
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(raw, f)
 
-    # ---------- picking a class: school → program → section → batch ----------
+    # ---------- picking a class: school -> program -> section -> batch ----------
 
     def schools(self):
         return sorted({r["school"] for r in self.rows if r["school"]})
@@ -197,7 +197,7 @@ class Timetable:
 
             previous = next((c for c in classes
                              if c["what"] == what and c["last_period"] == r["period"] - 1), None)
-            if previous:                  # same class continues → make it longer
+            if previous:                  # same class continues -> make it longer
                 previous["last_period"] = r["period"]
                 previous["end"] = period_times(r["period"])[1]
             else:

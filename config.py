@@ -1,6 +1,6 @@
 """
-⚙️  SETTINGS
-============
+SETTINGS
+========
 Everything you might want to change lives in this one file.
 
 Your secret bot token does NOT go here. Put it in a file called `.env`
@@ -54,7 +54,7 @@ TIMETABLE_REFRESH_MINUTES = int(os.getenv("TIMETABLE_REFRESH_MINUTES", "180"))
 # India has no daylight-saving time, so a fixed +05:30 offset is always right.
 IST = timezone(timedelta(hours=5, minutes=30), "IST")
 
-# Period number → (start, end).
+# Period number -> (start, end).
 # Same rule as the mygbu.in website: period 1 starts 08:30, each lasts 1 hour.
 # If your college's bell timings are different, just edit this table.
 PERIODS = {

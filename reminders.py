@@ -1,16 +1,16 @@
 """
-⏰  THE CLOCK
-=============
+THE CLOCK
+=========
 bot.py calls tick() every few seconds. Each time, it asks two questions:
 
-  ☀️  Is it time for the morning summary?          (config.MORNING_SUMMARY_AT)
-  🔔  Does a class start in the next few minutes?   (config.REMIND_MINUTES_BEFORE)
+  Is it time for the morning summary?          (config.MORNING_SUMMARY_AT)
+  Does a class start in the next few minutes?  (config.REMIND_MINUTES_BEFORE)
 
 It writes down what it already sent in data/sent.json, so even if the bot
 restarts, nobody gets the same message twice.
 
-In the n8n workflow this is the  ⏰ Every 5 minutes  trigger followed by
-🕐 Anything due now?  and  ✉️ Build summary / reminders.
+In the n8n workflow this is the "Every 5 minutes" trigger, followed by
+"Anything due now?" and "Build summary / reminders".
 """
 
 import json
@@ -59,11 +59,11 @@ def deliver(chat_id, text):
         time.sleep(0.05)                   # be gentle: Telegram allows ~30 messages/second
         return True
     except tg.TelegramError as error:
-        if error.code == 403:              # the student blocked the bot → stop messaging them
+        if error.code == 403:              # the student blocked the bot -> stop messaging them
             students.remove(chat_id)
-        print(f"⚠️  Could not message {chat_id}: {error}")
+        print(f"Could not message {chat_id}: {error}")
     except requests.RequestException as error:
-        print(f"⚠️  Could not message {chat_id}: {error}")
+        print(f"Could not message {chat_id}: {error}")
     return False
 
 
@@ -71,9 +71,9 @@ def send_morning_summaries(tt, now):
     day, sent = now.isoweekday(), 0
     for chat_id, student in students.everyone():
         classes = tt.classes_on(student["section_id"], day, student.get("batch", 0))
-        if classes:                        # no classes today → don't disturb them
+        if classes:                        # no classes today -> don't disturb them
             sent += deliver(chat_id, messages.morning_summary(student, day, classes))
-    print(f"☀️  Morning summaries sent: {sent}")
+    print(f"Morning summaries sent: {sent}")
 
 
 def send_class_reminders(tt, now, period):
@@ -86,7 +86,7 @@ def send_class_reminders(tt, now, period):
             minutes_left = math.ceil((at_time(now.date(), classes[0]["start"]) - now).total_seconds() / 60)
             sent += deliver(chat_id, messages.reminder(student, classes, minutes_left))
     if sent:
-        print(f"🔔 Reminders sent for period {period}: {sent}")
+        print(f"Reminders sent for period {period}: {sent}")
 
 
 # ── The tick ──────────────────────────────────────────────────────────────
@@ -96,13 +96,13 @@ def tick(tt, now=None):
     today = now.date()
     sent = _load_sent(today.isoformat())
 
-    # ☀️ Morning summary: any time in the hour after MORNING_SUMMARY_AT, once a day
+    # Morning summary: any time in the hour after MORNING_SUMMARY_AT, once a day
     summary_time = at_time(today, config.MORNING_SUMMARY_AT)
     if summary_time <= now < summary_time + timedelta(hours=1) and "summary" not in sent["done"]:
         _mark_sent(sent, "summary")        # write it down first, so a crash can't cause repeats
         send_morning_summaries(tt, now)
 
-    # 🔔 Class reminders: from X minutes before a period starts until it starts
+    # Class reminders: from X minutes before a period starts until it starts
     periods_today = sorted({r["period"] for r in tt.rows if r["day"] == now.isoweekday()})
     for period in periods_today:
         class_start = at_time(today, period_times(period)[0])

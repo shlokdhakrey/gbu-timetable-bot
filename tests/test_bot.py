@@ -1,5 +1,5 @@
 """
-✅  TESTS — run with:   python -m unittest discover tests -v
+TESTS - run with:   python -m unittest discover tests -v
 
 They use the offline sample (sample_data/timetable_sample.json) and a fake
 Telegram, so they work without internet and without a bot token.
@@ -96,7 +96,7 @@ class TimetableTests(unittest.TestCase):
 
     def test_period_times(self):
         self.assertEqual(period_times(2), ("09:30", "10:30"))
-        self.assertEqual(period_times(12), ("19:30", "20:30"))   # not in table → website's rule
+        self.assertEqual(period_times(12), ("19:30", "20:30"))   # not in table -> website's rule
 
 
 class ConversationTests(unittest.TestCase):
@@ -133,7 +133,7 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(self.telegram.buttons(), ["c:1239"])
 
     def test_today_needs_a_class_first(self):
-        replies.handle_update(message("📅 Today"), self.tt)
+        replies.handle_update(message("Today"), self.tt)
         self.assertIn("/start", self.telegram.texts()[-1])
 
     def test_stop_forgets_student(self):
@@ -160,7 +160,7 @@ class ReminderTests(unittest.TestCase):
 
     def test_reminder_sent_once_before_class(self):
         reminders.tick(self.tt, at("15:20"))
-        reminders.tick(self.tt, at("15:22"))                  # same class → no repeat
+        reminders.tick(self.tt, at("15:22"))                  # same class -> no repeat
         texts = self.telegram.texts()
         self.assertEqual(len(texts), 1)
         self.assertIn("Class in 10 minutes", texts[0])

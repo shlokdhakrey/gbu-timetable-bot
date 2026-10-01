@@ -1,13 +1,13 @@
 """
-🧠  THE BRAIN
-=============
+THE BRAIN
+=========
 Handles one Telegram "update" (a message, or a tap on a button).
 
 Same steps as the n8n workflow:
-    🧠 Understand message         → understand()
-    👤 Find student               → students.get()
-    🔀 What does the student want? → the ACTIONS table at the bottom
-    one function per action       → show_schools(), save_class(), show_day(), ...
+    Understand message          -> understand()
+    Find student                -> students.get()
+    What does the student want?  -> the ACTIONS table at the bottom
+    one function per action      -> show_schools(), save_class(), show_day(), ...
 """
 
 from datetime import datetime, timedelta
@@ -17,7 +17,7 @@ import messages
 import students
 import telegram_api as tg
 
-# Typed commands → action names
+# Typed commands -> action names
 COMMANDS = {
     "/start": "start", "/class": "start",
     "/today": "today", "/tomorrow": "tomorrow", "/next": "next", "/week": "week",
@@ -48,7 +48,7 @@ def understand(update):
     if not message:
         return None
     text = (message.get("text") or "").strip()
-    first_word = text.split()[0].split("@")[0].lower() if text else ""   # "/today@MyBot" → "/today"
+    first_word = text.split()[0].split("@")[0].lower() if text else ""   # "/today@MyBot" -> "/today"
 
     if text in messages.MENU_BUTTONS:
         action = messages.MENU_BUTTONS[text]
@@ -77,7 +77,7 @@ def reply(who, text, buttons=None):
         tg.send_message(who["chat_id"], text, buttons=buttons)
 
 
-# ── Picking a class: school → program → class → batch ─────────────────────
+# ── Picking a class: school -> program -> class -> batch ─────────────────────
 
 def show_schools(who, tt):
     reply(who, messages.pick_school(who["name"], who["student"]),
@@ -104,7 +104,7 @@ def save_class(who, tt):
         return reply(who, messages.CLASS_GONE)
     student = students.save(who["chat_id"], name=who["name"], batch=0, **info)
     batches = tt.batches(info["section_id"])
-    if batches:                                          # labs split into batches → ask which
+    if batches:                                          # labs split into batches -> ask which
         reply(who, messages.pick_batch(info["section"]), messages.batch_buttons(batches))
     else:
         finish_setup(who, student)
@@ -120,7 +120,7 @@ def save_batch(who, tt):
 def finish_setup(who, student):
     reply(who, messages.class_chosen(student))
     tg.send_message(who["chat_id"], messages.all_set(student), menu=messages.MENU)
-    print(f"💾 {who['name'] or who['chat_id']} saved as {student['section']} (batch {student['batch']})")
+    print(f"{who['name'] or who['chat_id']} saved as {student['section']} (batch {student['batch']})")
 
 
 def search(who, tt):
@@ -196,7 +196,7 @@ def handle_update(update, tt):
     if who["callback_id"]:
         tg.answer_callback(who["callback_id"])           # stops the button's loading spinner
     who["student"] = students.get(who["chat_id"])
-    print(f"💬 {who['name'] or who['chat_id']}: {who['action']} {who['value']}".rstrip())
+    print(f"{who['name'] or who['chat_id']}: {who['action']} {who['value']}".rstrip())
 
     if not tt.rows and who["action"] not in ("stop", "help"):
         return tg.send_message(who["chat_id"], messages.NO_TIMETABLE)

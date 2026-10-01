@@ -1,10 +1,10 @@
 """
-💾  REMEMBERING STUDENTS
-========================
+REMEMBERING STUDENTS
+====================
 Which student picked which class. Saved in data/students.json so the bot
 remembers everyone even after a restart.
 
-In the n8n workflow this is the  "gbu_students"  Data Table.
+In the n8n workflow this is the "gbu_students" data table.
 
 The file looks like this:
 {
